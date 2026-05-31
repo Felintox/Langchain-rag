@@ -3,9 +3,12 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
+from langchain_core.prompts import PromptTemplate
+from langchain_ollama import OllamaLLM
+from langchain_classic.chains import RetrievalQA
 #%%
 # Carregar o PDF e criar os documentos
-carregar_pdf= PyPDFLoader('data/manual_siemens_fanuc.pdf')
+carregar_pdf= PyPDFLoader('data/iso27001.pdf')
 documento=carregar_pdf.load()
 
 #%%
@@ -25,34 +28,38 @@ print(chunks[0].metadata)       # de qual página veio, nome do arquivo...
 # %%
 # Com o chunks criado queremos agora aplicar um embeddings nos chunks e armazenar os embeddings em um vetor store, para facilitar a busca e a recuperação de informações. O OllamaEmbeddings é uma classe que gera embeddings usando o modelo Ollama, e o Chroma é um vetor store que armazena os embeddings e permite realizar buscas eficientes.
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
-db = Chroma.from_documents(chunks, embeddings, persist_directory="./db")
+db = Chroma.from_documents(chunks, embeddings, 
+                           persist_directory="./db",
+                           collection_metadata={"hnsw:space": "cosine"})
+                           
 
-#%%
-# Testando a busca no vetor store. A função db.similarity_search recebe uma consulta e retorna os chunks mais relevantes com base na similaridade dos embeddings.
+# %%
 results = db.similarity_search_with_relevance_scores(
-    "Qual o torque máximo do eixo X?", k=3
-)
-#%%
-for doc, score in results:
-    print(f"Score: {score:.3f}")
-    print(f"Página: {doc.metadata['page']}")
-    print(f"Texto: {doc.page_content[:200]}")
-    print("---")
-# %%
-print(db._collection.count())  # quantos chunks tem
-print(db._embedding_function)  # qual modelo de embedding está sendo usado
-# %%
-results = db.similarity_search_with_score(
-    "programação paramétrica CNC", k=3
+    "What does ISO 27001 say about network segregation?", k=3
 )
 
 for doc, score in results:
     print(f"Score: {score:.3f}")
-    print(f"Texto: {doc.page_content[:150]}")
+    print(f"Texto: {doc.page_content}")
     print("---")
+
+
 # %%
-for i, doc in enumerate(documento[:10]):
-    print(f"Página {i}: {len(doc.page_content)} caracteres")
-    print(doc.page_content[:100])
-    print("---")
+template=PromptTemplate.from_template(
+"Anwser to the question based on the context, if you don't know the answer say you don't know, don't try to invent an answer. \n\n"
+"Context: {context}\n\n"
+"Question: {question}\n\n"
+)
+# %%
+llm = OllamaLLM(model="llama3.1:8b")
+retriever = db.as_retriever(search_kwargs={"k": 3})
+
+qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=retriever,
+    chain_type_kwargs={"prompt": template}  # aqui entra o seu template
+)
+
+resposta = qa.invoke("What does ISO 27001 say about access control?")
+print(resposta["result"])
 # %%
