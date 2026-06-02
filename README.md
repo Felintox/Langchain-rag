@@ -108,3 +108,6 @@ Embora o sistema atual já contemple arquitetura avançada de metadados e separa
 - **Observabilidade:** Integrar ferramentas de tracing como LangSmith ou Arize Phoenix para monitorar chamadas LLM e latência do Retrieval.
 - **Memória Conversacional:** Adicionar endpoints na API e na interface capazes de passar o `chat_history` no escopo da chain para permitir follow-up questions.
 - **Avaliação Automatizada:** Usar *LLM-as-a-Judge* (ex: framework Ragas) para quantificar as métricas de *Context Precision* e *Faithfulness* do RAG.
+
+<img width="770" height="486" alt="Captura de tela 2026-06-02 174423" src="https://github.com/user-attachments/assets/3970a47a-edde-445a-ac6a-56aac56d4d16" />
+
